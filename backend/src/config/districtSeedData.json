@@ -1,0 +1,124 @@
+{
+    "districts": {
+        "coimbatore": {
+            "name": "Coimbatore (Kongu Region)",
+            "state": "Tamil Nadu",
+            "lat": 11.0168,
+            "lon": 76.9558,
+            "elevation_m": 411,
+            "soil_type": "red_loam",
+            "soil_details": {
+                "pH_range": "6.0-7.5",
+                "organic_carbon": "0.5-0.75%",
+                "primary_minerals": [
+                    "Iron oxide",
+                    "Aluminum silicate"
+                ],
+                "drainage": "Well-drained",
+                "known_deficiencies": [
+                    "Zinc",
+                    "Boron",
+                    "Manganese"
+                ]
+            },
+            "avg_rainfall_mm": 674,
+            "rainfall_10yr": {
+                "2016": 620,
+                "2017": 710,
+                "2018": 695,
+                "2019": 580,
+                "2020": 730,
+                "2021": 650,
+                "2022": 690,
+                "2023": 710,
+                "2024": 640,
+                "2025": 615
+            },
+            "rainfall_deviation_alert": "2025 shows 8.7% below 10-year average — potential stress season",
+            "common_crops": [
+                "Cotton",
+                "Sugarcane",
+                "Turmeric",
+                "Coconut",
+                "Banana",
+                "Groundnut"
+            ],
+            "irrigation_type": "Canal (Noyyal basin) + Borewell",
+            "climate_zone": "Semi-arid (Western Ghats rain shadow)",
+            "temperature_range": {
+                "summer_max": 38,
+                "winter_min": 18,
+                "annual_avg": 27.5
+            },
+            "agri_risks": [
+                "Water table depletion (3-5m drop over 10 years)",
+                "Micronutrient deficiency in continuous cropping zones",
+                "Pest vectoring due to temperature increase trend (+0.3°C/decade)"
+            ]
+        },
+        "kerala": {
+            "name": "Wayanad / Kerala Western Ghats",
+            "state": "Kerala",
+            "lat": 11.6854,
+            "lon": 76.1320,
+            "elevation_m": 780,
+            "soil_type": "laterite",
+            "soil_details": {
+                "pH_range": "4.5-6.0",
+                "organic_carbon": "1.0-2.5%",
+                "primary_minerals": [
+                    "Iron hydroxide",
+                    "Gibbsite"
+                ],
+                "drainage": "Excessive in slopes, waterlogged in valleys",
+                "known_deficiencies": [
+                    "Calcium",
+                    "Magnesium",
+                    "Phosphorus"
+                ]
+            },
+            "avg_rainfall_mm": 3055,
+            "rainfall_10yr": {
+                "2016": 2890,
+                "2017": 3200,
+                "2018": 3850,
+                "2019": 3100,
+                "2020": 2950,
+                "2021": 3300,
+                "2022": 2750,
+                "2023": 3100,
+                "2024": 3050,
+                "2025": 2860
+            },
+            "rainfall_deviation_alert": "2018 extreme event (+26%) caused landslides. 2025 trending 6.4% below average.",
+            "common_crops": [
+                "Coffee",
+                "Tea",
+                "Pepper",
+                "Cardamom",
+                "Rubber",
+                "Rice",
+                "Banana"
+            ],
+            "irrigation_type": "Rain-fed (monsoon dependent)",
+            "climate_zone": "Tropical wet (Western Ghats windward)",
+            "temperature_range": {
+                "summer_max": 32,
+                "winter_min": 14,
+                "annual_avg": 23.5
+            },
+            "agri_risks": [
+                "Landslide risk in monsoon (steep laterite slopes)",
+                "Phosphorus fixation in acidic laterite soils",
+                "Coffee berry borer expansion due to warming trend",
+                "Loss of pollinator habitat from deforestation corridors"
+            ]
+        }
+    },
+    "data_sources": [
+        "TNAU Agro Climate Research Centre, Coimbatore",
+        "Kerala Agricultural University (KAU), Thrissur",
+        "India Meteorological Department (IMD) rainfall archives",
+        "National Bureau of Soil Survey (NBSS&LUP)"
+    ]
+}

@@ -1,0 +1,24 @@
+# Dependency directories (Huge files, never upload these)
+node_modules/
+
+# Secrets and Credentials (CRITICAL: Do not leak your API keys)
+.env
+
+# Environment-specific files
+.env.local
+.env.development.local  
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# Editor/IDE folders
+.vscode/
+.idea/

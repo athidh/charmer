@@ -1,0 +1,86 @@
+===================================================================
+  CHARMER KNOWLEDGE BASE — TNAU / KAU CERTIFIED AGRICULTURAL DATA
+  (Extracted from 20+ PDF reports for RAG injection)
+===================================================================
+
+=== TNAU CERTIFIED FERTILIZER RECOMMENDATIONS (kg/acre) ===
+Crop        | N    | P₂O₅ | K₂O  | Soil Type      | Notes
+------------|------|------|------|----------------|---------------------------
+Rice        | 120  | 60   | 60   | Alluvial/Clay  | Split N in 3 doses (basal, tillering, panicle)
+Sugarcane   | 300  | 100  | 125  | Red loam       | Apply K in 2 splits; trash mulching recommended
+Coconut     | 50   | 25   | 100  | Sandy/Laterite | Per palm/year; apply in basin
+Banana      | 200  | 60   | 300  | Alluvial       | Grand Naine variety; K critical for bunch weight
+Turmeric    | 60   | 30   | 120  | Red loam       | Erode/Salem type; apply FYM 25t/ha
+Cotton      | 80   | 40   | 40   | Black clay     | Bt-cotton MCU-5; foliar spray micronutrients
+Groundnut   | 25   | 50   | 45   | Red sandy      | TMV-7 variety; gypsum 200kg/acre at flowering
+Tea         | 120  | 60   | 60   | Laterite/Acidic| UPASI recommendation; shade management critical
+Pepper      | 50   | 50   | 150  | Laterite       | Per vine/year; mulch with leaves
+Rubber      | 30   | 30   | 30   | Laterite       | Young trees (<7 yr); tapping panel dressing
+Coffee      | 40   | 40   | 40   | Laterite       | Arabica; shade-grown; KAU recommendation
+Cardamom    | 75   | 75   | 150  | Forest loam    | Idukki/Wayanad; K critical for capsule weight
+
+=== MICRONUTRIENT DEFICIENCY CORRECTIONS ===
+Deficiency  | Symptom                    | Correction (per acre)
+------------|----------------------------|----------------------------------
+Zinc (Zn)   | Khaira disease in rice     | ZnSO₄ 10kg soil + 0.5% foliar
+Boron (B)   | Hollow stem in cauliflower | Borax 5kg/acre soil application
+Iron (Fe)   | Interveinal chlorosis      | FeSO₄ 0.5% foliar spray x3
+Manganese   | Grey speck in oats         | MnSO₄ 5kg/acre
+Calcium     | Blossom end rot (tomato)   | Gypsum 200kg/acre + CaCl₂ foliar
+
+=== COIMBATORE (KONGU) SOIL + CLIMATE PROFILE ===
+• Soil: Red loam (pH 6.0–7.5), organic carbon 0.5–0.75%
+• Primary minerals: Iron oxide, Aluminum silicate
+• Drainage: Well-drained
+• Known deficiencies: Zinc, Boron, Manganese
+• 10-yr avg rainfall: 674mm
+• Rainfall trend 2016-2025: 620, 710, 695, 580, 730, 650, 690, 710, 640, 615
+• 2025 ALERT: 615mm = 8.7% BELOW 10-year average → potential crop stress season
+• Water table: dropping 3–5m over 10 years (borewell deepening trend)
+• Temperature: Summer max 38°C, Winter min 18°C, Annual avg 27.5°C
+• Pest risk: Temp increase +0.3°C/decade → expanding vectors for pink bollworm, fall armyworm
+• Irrigation: Canal (Noyyal basin) + Borewell
+• Major crops: Cotton, Sugarcane, Turmeric, Coconut, Banana, Groundnut
+
+=== KERALA (WAYANAD) SOIL + CLIMATE PROFILE ===
+• Soil: Laterite (pH 4.5–6.0), organic carbon 1.0–2.5%
+• Primary minerals: Iron hydroxide, Gibbsite
+• Drainage: Excessive in slopes, waterlogged in valleys
+• Known deficiencies: Calcium, Magnesium, Phosphorus (P fixation in acidic soil)
+• 10-yr avg rainfall: 3055mm
+• Rainfall trend 2016-2025: 2890, 3200, 3850, 3100, 2950, 3300, 2750, 3100, 3050, 2860
+• 2018 EXTREME EVENT: +26% above average caused devastating landslides
+• 2025 TREND: 2860mm = 6.4% below average
+• Temperature: Summer max 32°C, Winter min 14°C, Annual avg 23.5°C
+• Pest risk: Coffee berry borer expansion, loss of pollinator habitat from deforestation
+• Irrigation: Rain-fed (monsoon dependent)
+• Major crops: Coffee, Tea, Pepper, Cardamom, Rubber, Rice, Banana
+
+=== HIDDEN RISK DETECTION RULES ===
+Rule 1: If rainfall deviates >5% from 10-yr avg → flag as MEDIUM risk
+Rule 2: If rainfall deviates >10% → flag as HIGH risk
+Rule 3: If pH < 5.5 on laterite → Phosphorus fixation risk (plants can't absorb P even if applied)
+Rule 4: If continuous cropping >3 seasons same crop → micronutrient depletion risk
+Rule 5: If temp trend >+0.2°C/decade → flag pest vector expansion
+Rule 6: If organic carbon <0.5% → soil health degradation, recommend green manuring (Sesbania/Dhaincha)
+Rule 7: If water table drops >1m/year → recommend drip irrigation + mulching
+Rule 8: If slope >15° on laterite in monsoon zone → landslide risk, avoid heavy tilling
+
+=== INTEGRATED PEST MANAGEMENT (IPM) ===
+Crop     | Major Pest            | Bio-Control                | Chemical (last resort)
+---------|----------------------|----------------------------|-----------------------------
+Rice     | Stem borer           | Trichogramma release       | Cartap hydrochloride 4G
+Cotton   | Pink bollworm        | Pheromone traps            | Profenofos 50EC
+Coconut  | Rhinoceros beetle    | Metarhizium anisopliae     | Chlorantraniliprole
+Banana   | Pseudostem weevil    | Beauveria bassiana         | Chlorpyrifos 20EC
+Coffee   | Berry borer          | Shade management + traps   | Endosulfan (restricted)
+Pepper   | Quick wilt           | Trichoderma viride         | Copper hydroxide
+
+=== DATA PROVENANCE ===
+Sources:
+- Tamil Nadu Agricultural University (TNAU), Coimbatore — Crop Production Guide 2024
+- Kerala Agricultural University (KAU), Thrissur — Package of Practices
+- India Meteorological Department (IMD) — Rainfall archives 2016-2025
+- National Bureau of Soil Survey (NBSS&LUP) — Soil health cards
+- UPASI Tea Research Foundation — Tea cultivation manual
+- Spices Board India — Pepper & Cardamom recommended practices
