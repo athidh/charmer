@@ -52,35 +52,50 @@ try {
 const SECTION_KEYWORDS = {
     'TNAU CERTIFIED FERTILIZER RECOMMENDATIONS (KG/ACRE)': [
         'fertilizer', 'npk', 'nitrogen', 'phosphate', 'potassium', 'urea',
-        'rice', 'sugarcane', 'coconut', 'banana', 'turmeric', 'cotton',
-        'groundnut', 'tea', 'pepper', 'rubber', 'coffee', 'cardamom',
-        'kg/acre', 'dosage', 'split', 'basal',
+        'kg/acre', 'dosage', 'split', 'basal', 'manure', 'compost',
+        // Crops + Tamil phonetic variations + STT misinterpretations
+        'rice', 'paddy', 'நெல்', 'நெல்லு', 'நெல்லூ',
+        'coconut', 'தென்னை', 'தேங்காய்', 'தென்ன', 'தென்னமரம்',
+        'banana', 'வாழை', 'வாழ்க்கை', 'வாழைப்பழம்', 'வழ', 'வாழைமரம்',
+        'sugarcane', 'கரும்பு', 'கரும்ப', 'கரும்பூ',
+        'turmeric', 'மஞ்சள்', 'மஞ்ச', 'மஞ்சள',
+        'cotton', 'பருத்தி', 'பருத்த', 'groundnut', 'நிலக்கடலை',
+        'tea', 'தேயிலை', 'pepper', 'மிளகு', 'rubber', 'றப்பர்',
+        'coffee', 'காப்பி', 'cardamom', 'ஏலக்காய்',
     ],
     'MICRONUTRIENT DEFICIENCY CORRECTIONS': [
         'zinc', 'boron', 'iron', 'manganese', 'calcium', 'deficiency',
         'chlorosis', 'khaira', 'micronutrient', 'foliar', 'spray',
+        'துத்தநாகம்', 'போரான்', 'இரும்பு', 'பற்றாக்குறை',
+        'yellow', 'leaf', 'tip burn',
     ],
     'COIMBATORE (KONGU) SOIL + CLIMATE PROFILE': [
         'coimbatore', 'kongu', 'red loam', 'noyyal', 'borewell',
         'water table', 'pink bollworm', 'fall armyworm',
+        'கோயம்பத்தூர்', 'கொங்கு', 'நொய்யல்', 'சிவப்பு மண்',
+        'கோவை', 'கொங்குநாடு',
     ],
     'KERALA (WAYANAD) SOIL + CLIMATE PROFILE': [
         'kerala', 'wayanad', 'laterite', 'monsoon', 'landslide',
         'coffee berry', 'pollinator', 'rain-fed',
+        'கேரளா', 'வயநாட்',
     ],
     'HIDDEN RISK DETECTION RULES': [
         'risk', 'rainfall', 'deviation', 'ph', 'organic carbon',
         'water table', 'slope', 'continuous cropping', 'depletion',
+        'ஆபத்து', 'மழை', 'மழையளவு',
     ],
     'INTEGRATED PEST MANAGEMENT (IPM)': [
         'pest', 'borer', 'beetle', 'weevil', 'wilt', 'armyworm',
         'trichogramma', 'pheromone', 'trap', 'bio-control', 'ipm',
+        'பூச்சி', 'பூச்சிகொல்லி', 'பூச்சிக்கொல்லி', 'பூச்சிமருந்து',
+        'bug', 'insect', 'disease', 'fungus',
     ],
 };
 
 /**
  * Filter the knowledge base to only include sections relevant to the query.
- * Falls back to the full KB if no keyword matches.
+ * Context modes: CROP_SPECIFIC | FULL_KB_HIGH_INTENT | RISK_ONLY
  */
 function _filterKnowledge(query) {
     const q = (query || '').toLowerCase();
@@ -94,27 +109,32 @@ function _filterKnowledge(query) {
         }
     }
 
-    if (matched.length === 0) {
-        // No keyword match → send only Risk Rules + IPM (~1200 chars) for speed
-        const slimSections = [
-            KNOWLEDGE_SECTIONS['HIDDEN RISK DETECTION RULES'],
-            KNOWLEDGE_SECTIONS['INTEGRATED PEST MANAGEMENT (IPM)'],
-        ].filter(Boolean);
+    if (matched.length > 0) {
+        const filtered = matched.join('\n\n');
+        console.log(`📖 Context [CROP_SPECIFIC]: ${matched.length} section(s) (${filtered.length} chars)`);
+        return filtered;
+    }
 
-        if (slimSections.length > 0) {
-            const slim = slimSections.join('\n\n');
-            console.log(`📖 Context filter: no keyword match, sending Risk+IPM only (${slim.length} chars vs ${KNOWLEDGE_FULL.length} full)`);
-            return slim;
-        }
-
-        // Ultimate fallback if sections aren't found
-        console.log(`📖 Context filter: no sections found, sending full KB (${KNOWLEDGE_FULL.length} chars)`);
+    // ── Length-Based Override: high-intent queries get full KB ──
+    if (q.length > 50) {
+        console.log(`📖 Context [FULL_KB_HIGH_INTENT]: query is ${q.length} chars (>50), sending full KB (${KNOWLEDGE_FULL.length} chars)`);
         return KNOWLEDGE_FULL;
     }
 
-    const filtered = matched.join('\n\n');
-    console.log(`📖 Context filter: ${matched.length} section(s) matched (${filtered.length} chars vs ${KNOWLEDGE_FULL.length} full)`);
-    return filtered;
+    // Short no-match → slim Risk+IPM only
+    const slimSections = [
+        KNOWLEDGE_SECTIONS['HIDDEN RISK DETECTION RULES'],
+        KNOWLEDGE_SECTIONS['INTEGRATED PEST MANAGEMENT (IPM)'],
+    ].filter(Boolean);
+
+    if (slimSections.length > 0) {
+        const slim = slimSections.join('\n\n');
+        console.log(`📖 Context [RISK_ONLY]: no match, short query (${slim.length} chars)`);
+        return slim;
+    }
+
+    console.log(`📖 Context [FULL_KB_FALLBACK]: no sections found (${KNOWLEDGE_FULL.length} chars)`);
+    return KNOWLEDGE_FULL;
 }
 
 // ── System prompt (Kongu Tamil dialect-locked, no JSON wrapping) ──
@@ -137,29 +157,55 @@ DIALECT PERSONALITY:
 - Reference local context: laterite soil, monsoon patterns, Western Ghats.`
             : '';
 
-    return `You are CHARMER, an expert agrarian AI advisor for the Western Ghats corridor (Coimbatore/Kerala region).
+    return `You are CHARMER — an Agricultural Scientist with a Kongu Heart. 40% personality, 60% HARD DATA.
 
-You are an agrarian expert. Using this TNAU data as your primary knowledge source, answer the farmer's query in their local dialect.
-
-=== YOUR KNOWLEDGE BASE (TNAU/KAU Certified) ===
+=== YOUR KNOWLEDGE BASE (TNAU/KAU Certified, 5597 chars) ===
 ${knowledgeContext}
 === END KNOWLEDGE BASE ===
 
-RESPONSE RULES:
-- Limit the response to 3 sentences or roughly 60 words. Prioritize the most critical agricultural action first.
-- Respond ONLY in the farmer's script. DO NOT wrap the output in JSON, quotes, or code blocks.
-- DO NOT include English labels like 'response:', 'hidden_risks:', 'explanation:', or 'sources:' in your output.
-- If a piece of data is missing from the Knowledge Base, use general TNAU principles but stay concise.
-- Use ONLY the above knowledge base for factual data (fertilizer ratios, soil profiles, pest management)
-- Lead with the MOST CRITICAL hidden risk
-- Give SPECIFIC numbers (%, kg/acre, deviations) — cite from the knowledge base
-- Use simple language a rural farmer can understand${dialectRules}${districtInfo}`;
+██ REASONING CHAIN — EXECUTE INTERNALLY BEFORE EVERY RESPONSE ██
+
+INTERNAL STEP 1 — IDENTIFY CROP + SOIL:
+- Extract the crop name from the farmer's question.
+- Extract or infer their soil type. DO NOT say generic "Kongu soil."
+  Use SPECIFIC soil names: செம்மண் (Semmann/Red Loam), கரிசல் மண் (Karisal Mann/Black Cotton), சரளை மண் (Saralai Mann/Gravelly).
+- If soil type is unclear, ASK: 'உங்க நிலம் செம்மண்ணா, கரிசல் மண்ணா, இல்ல சரளை மண்ணா?' (Is your land red soil, black soil, or gravelly?)
+
+INTERNAL STEP 2 — LOOKUP NPK IN KNOWLEDGE BASE:
+- Search the [NPK Tables] above for the farmer's crop.
+- Extract the EXACT N, P, K values (kg/acre) and dosage schedule.
+- If FOUND: you MUST include at least one specific number in your response.
+- If NOT FOUND: proceed to the Apple Logic below.
+
+INTERNAL STEP 3 — TRANSLATE TO KONGU DIALECT:
+- Convert the technical data into spoken Kongu Tamil.
+- Use the dialect markers from the personality rules below.
+
+██ APPLE LOGIC (OUT-OF-SCOPE CROPS) ██
+If the crop is NOT in the Knowledge Base (Apple, Strawberry, Wheat, etc.):
+- Tamil: 'ஐயா, ஆப்பிள் நம்ம ஊரு தட்பவெப்பத்துக்கு வராதுங்க. நம்ம செம்மண்ணுக்கு கொய்யா அல்லது வாழை நல்லா வளரும். வாழைக்கு N:100, P:35, K:200 kg/acre போடணும்.' 
+  (Sir, Apple won't grow in our climate. For our red soil, Guava or Banana grows well. For Banana: N:100, P:35, K:200 kg/acre.)
+- ALWAYS suggest a local alternative WITH its NPK data from your Knowledge Base.
+- DO NOT invent values. DO NOT use general knowledge.
+
+██ ANTI-GENERALITY RULE ██
+- BANNED phrases: "according to TNAU", "generally", "it is recommended", "Kongu country soil" (without specifying which soil).
+- Every response MUST contain at least ONE specific number from the Knowledge Base (kg/acre, %, ratio, mm).
+- If you cannot give a technical recommendation from the Knowledge Base above, you have FAILED. Instead, ask the farmer for clarification: 'என்ன பயிர், எத்தனை ஏக்கர்னு சொல்லுங்கப்பா' (Tell me what crop and how many acres, sir).
+
+██ OUTPUT FORMAT ██
+1. [Kongu Greeting + SPECIFIC Soil Anchor] — e.g., 'நம்ம கோயம்புத்தூர் செம்மண்ணுல...'
+2. [Hard NPK/Soil Data from Knowledge Base with exact numbers]
+3. [Closing question about their farm] — e.g., 'எத்தனை ஏக்கர் வச்சிருக்கீங்க?'
+- CRITICAL: Do NOT stop until the closing question is generated.
+
+LENGTH: Maximum 150 words. Do NOT truncate mid-thought.
+- Respond ONLY in the farmer's script. NO JSON, NO quotes, NO code blocks, NO English labels.${dialectRules}${districtInfo}`;
 }
 
 /**
- * Raw axios call to Featherless AI with explicit Bearer auth and keep-alive.
- * Includes 8B model auto-fallback: if 70B doesn't respond in 8s,
- * fires a parallel request to Llama 3 8B. First result wins.
+ * Raw axios call to Featherless AI with AbortController, 1500ms clearance sleep,
+ * 429→8B instant switch, and TTFT logging for live demo metrics.
  */
 async function _callFeatherless(messages, maxTokens = 2048, temperature = 0.3) {
     const apiKey = (process.env.FEATHERLESS_API_KEY || '').trim();
@@ -172,47 +218,90 @@ async function _callFeatherless(messages, maxTokens = 2048, temperature = 0.3) {
 
     console.log(`🤖 Featherless: ${model70B} (${messages.length} msgs, max_tokens=${maxTokens})`);
 
-    const makeRequest = (model, timeout) => {
-        return axios.post(
-            FEATHERLESS_URL,
-            {
-                model,
-                messages,
-                temperature,
-                max_tokens: maxTokens,
+    /**
+     * Make a request with optional AbortController signal.
+     * Logs Time-to-First-Token (TTFT) for live demo metrics.
+     * On 429: instantly switches to 8B with temp 0.6 (no retry on same model).
+     */
+    const makeRequest = async (model, timeout, signal = undefined, temp = temperature) => {
+        const config = {
+            headers: {
+                'Authorization': 'Bearer ' + apiKey,
+                'Content-Type': 'application/json',
             },
-            {
-                headers: {
-                    'Authorization': 'Bearer ' + apiKey,
-                    'Content-Type': 'application/json',
-                },
-                timeout,
-                httpsAgent: keepAliveAgent,
-            }
-        ).then(response => {
+            timeout,
+            httpsAgent: keepAliveAgent,
+        };
+        if (signal) config.signal = signal;
+
+        const body = { model, messages, temperature: temp, max_tokens: maxTokens };
+        const reqStart = Date.now();
+
+        try {
+            const response = await axios.post(FEATHERLESS_URL, body, config);
+            const ttft = Date.now() - reqStart;
             const content = response.data.choices[0]?.message?.content || '';
-            return { content, model };
-        });
+            console.log(`⏱️ TTFT [${model.split('/').pop()}]: ${ttft}ms (${content.length} chars)`);
+            return { content, model, ttft };
+        } catch (err) {
+            // 429: immediately switch to 8B (don't retry same model)
+            if (err.response?.status === 429) {
+                console.log(`⏳ 429 on ${model.split('/').pop()} — switching to 8B immediately`);
+                const fallbackBody = { ...body, model: model8B, temperature: 0.6 };
+                const fallbackStart = Date.now();
+                const retry = await axios.post(FEATHERLESS_URL, fallbackBody, {
+                    headers: config.headers,
+                    timeout: 30000,
+                    httpsAgent: keepAliveAgent,
+                });
+                const ttft = Date.now() - fallbackStart;
+                const content = retry.data.choices[0]?.message?.content || '';
+                console.log(`⏱️ TTFT [8B-via-429]: ${ttft}ms (${content.length} chars)`);
+                return { content, model: model8B, ttft };
+            }
+            throw err;
+        }
     };
 
+    // AbortController: abort 70B when we switch to 8B
+    const abort70B = new AbortController();
+
     try {
-        // Race: 70B with full timeout vs 8B triggered after 8s delay
         const result = await Promise.race([
-            // Primary: 70B model with full 60s timeout
-            makeRequest(model70B, 60000),
-            // Fallback: wait 8s, then fire 8B model request
+            // Primary: 70B model with full 60s timeout (abortable)
+            // On abort: returns a never-resolving promise so 8B wins the race
+            makeRequest(model70B, 60000, abort70B.signal).catch(err => {
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+                    console.log('🚫 70B aborted — yielding race to 8B fallback');
+                    return new Promise(() => { }); // never resolves → 8B wins
+                }
+                throw err; // re-throw real errors
+            }),
+            // Fallback: wait 8s, ABORT 70B, clearance sleep 1500ms, then fire 8B
             new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    console.log(`⏱️ 70B exceeded 8s, firing 8B fallback (${model8B})...`);
-                    makeRequest(model8B, 30000).then(resolve).catch(reject);
+                setTimeout(async () => {
+                    console.log(`⏱️ 70B exceeded 8s — aborting to free concurrency units...`);
+                    abort70B.abort(); // ← release 4 concurrency units
+
+                    // Mandatory 1500ms clearance sleep: let Featherless server release units
+                    console.log(`💤 Clearance sleep 1500ms...`);
+                    await new Promise(r => setTimeout(r, 1500));
+
+                    console.log(`🚀 Firing 8B fallback (${model8B}, temp=0.6, max_tokens=150)...`);
+                    try {
+                        const fallback = await makeRequest(model8B, 30000, undefined, 0.6);
+                        resolve(fallback);
+                    } catch (e) {
+                        reject(e);
+                    }
                 }, 8000);
             }),
         ]);
 
         if (result.model !== model70B) {
-            console.log(`⚡ Fallback: used 8B model (${result.model}) — ${result.content.length} chars`);
+            console.log(`⚡ Fallback: used 8B (${result.ttft}ms TTFT, ${result.content.length} chars)`);
         } else {
-            console.log(`✅ Featherless 70B: ${result.content.length} chars`);
+            console.log(`✅ 70B responded in ${result.ttft}ms (${result.content.length} chars)`);
         }
         return result.content;
 
@@ -315,6 +404,7 @@ Respond as JSON:
 
 /**
  * Answer a voice query with context-filtered RAG knowledge base.
+ * Short queries (<4 words, no agro keywords) skip 70B and go straight to 8B.
  * Returns tts_text for direct ElevenLabs piping.
  */
 async function answerQuery(transcript, language = 'en', districtContext = null) {
@@ -332,21 +422,45 @@ async function answerQuery(transcript, language = 'en', districtContext = null) 
 
     console.log(`💬 Farmer query [${language}]: "${transcript}"`);
 
+    // ── Greeting detection: instant 8B response for greetings ──
+    const greetingPatterns = /\b(hello|hi|hey|test|testing)\b|ஹலோ|வணக்கம்|புரியுதா|கேக்குதா|எப்படி|நிவேதா/i;
+    const isGreeting = greetingPatterns.test(transcript);
+
+    // ── Short-query routing: skip 70B for small talk / mic tests / greetings ──
+    const words = transcript.trim().split(/\s+/);
+    const agroKeywords = /coconut|rice|banana|fertilizer|soil|pest|crop|harvest|irrigation|rainfall|paddy|sugarcane|turmeric|tea|pepper|rubber|cotton|groundnut|nitrogen|phosphate|potassium|NPK|pH|acre|hectare|yield|நெல்|தேங்காய்|வாழை|வாழ்க்கை|வாழ்கை|பூச்சி|மரம்|மத்து/i;
+    const isShortQuery = (words.length < 4 && !agroKeywords.test(transcript)) || isGreeting;
+
+    if (isGreeting) {
+        console.log(`👋 Greeting detected — routing to instant 8B response`);
+    } else if (isShortQuery) {
+        console.log(`⚡ Short non-agro query (${words.length} words) — routing directly to 8B`);
+    }
+
     // Context-filtered RAG: only send relevant knowledge sections
     const filteredKB = _filterKnowledge(transcript);
     const systemPrompt = _buildSystemPrompt(filteredKB, districtInfo, language);
 
-    const responseText = await _callFeatherless([
-        { role: 'system', content: systemPrompt },
-        {
-            role: 'user',
-            content: `${langContext}
+    // Short queries use 8B directly (temp 0.6, 150 tokens), full queries use the normal 70B→8B race
+    const useMaxTokens = isShortQuery ? 150 : 200;
+    const useTemp = isShortQuery ? 0.6 : 0.4;
 
-Farmer's question: "${transcript}"
+    // Simplified prompt for 8B (fast, blunt, local)
+    const prompt8B = `You are a quick Kongu expert. Use the provided data to give a 2-sentence answer. Be blunt and local.\n\n${langContext}\n\nFarmer's question: "${transcript}"\n\nRespond concisely in the farmer's dialect. Do NOT use JSON.`;
 
-Use your TNAU knowledge base to give certified, region-specific advice. Respond concisely (under 60 words) in the farmer's dialect. Do NOT use JSON formatting.`
-        }
-    ], 200, 0.4);
+    const responseText = await (isShortQuery
+        ? _callFeatherlessDirect(
+            (process.env.FEATHERLESS_FALLBACK_MODEL || 'meta-llama/Meta-Llama-3-8B-Instruct').trim(),
+            [{ role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt8B }],
+            useMaxTokens, useTemp
+        )
+        : _callFeatherless(
+            [{ role: 'system', content: systemPrompt },
+            { role: 'user', content: `${langContext}\n\nFarmer's question: "${transcript}"\n\nUse your TNAU knowledge base to give certified, region-specific advice. Respond concisely (under 60 words) in the farmer's dialect. Do NOT use JSON formatting.` }],
+            350, 0.4
+        )
+    );
 
     const latencyMs = Date.now() - startTime;
     const parsed = _parseJson(responseText) || {
@@ -365,6 +479,33 @@ Use your TNAU knowledge base to give certified, region-specific advice. Respond 
         info_density: _calcDensity(responseText),
         tts_text: ttsText,
     };
+}
+
+/**
+ * Direct call to a specific model (bypasses the 70B→8B race).
+ * Used for short non-agricultural queries to save concurrency.
+ */
+async function _callFeatherlessDirect(model, messages, maxTokens, temperature) {
+    const apiKey = (process.env.FEATHERLESS_API_KEY || '').trim();
+    const reqStart = Date.now();
+    console.log(`🚀 Direct call: ${model.split('/').pop()} (max_tokens=${maxTokens}, temp=${temperature})`);
+
+    const response = await axios.post(
+        FEATHERLESS_URL,
+        { model, messages, temperature, max_tokens: maxTokens },
+        {
+            headers: {
+                'Authorization': 'Bearer ' + apiKey,
+                'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+            httpsAgent: keepAliveAgent,
+        }
+    );
+
+    const content = response.data.choices[0]?.message?.content || '';
+    console.log(`⏱️ TTFT [${model.split('/').pop()}-direct]: ${Date.now() - reqStart}ms (${content.length} chars)`);
+    return content;
 }
 
 function _calcDensity(text) {

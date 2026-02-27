@@ -5,7 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
-import 'package:audioplayers/audioplayers.dart';
+import '../../core/services/audio_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -26,7 +26,6 @@ class VoiceDashboardScreen extends StatefulWidget {
 class _VoiceDashboardScreenState extends State<VoiceDashboardScreen>
     with TickerProviderStateMixin {
   final AudioRecorder _recorder = AudioRecorder();
-  final AudioPlayer _audioPlayer = AudioPlayer();
   late AnimationController _pulseController;
   late AnimationController _rippleController;
 
@@ -64,7 +63,7 @@ class _VoiceDashboardScreenState extends State<VoiceDashboardScreen>
     _pulseController.dispose();
     _rippleController.dispose();
     _recorder.dispose();
-    _audioPlayer.dispose();
+
     _scrollController.dispose();
     super.dispose();
   }
@@ -197,8 +196,17 @@ class _VoiceDashboardScreenState extends State<VoiceDashboardScreen>
           });
 
           // Play audio response if available
-          if (chunk['audio_url'] != null) {
-            await _audioPlayer.play(UrlSource(chunk['audio_url']));
+          if (chunk['audio_base64'] != null &&
+              chunk['audio_base64'].toString().isNotEmpty) {
+            final audioProvider = context.read<AudioProvider>();
+            final played = await audioProvider.playBase64Audio(
+              chunk['audio_base64'],
+            );
+            if (!played) {
+              debugPrint(
+                '🔇 Audio playback failed: ${audioProvider.lastError}',
+              );
+            }
           }
 
           setState(() => _currentStage = 'idle');

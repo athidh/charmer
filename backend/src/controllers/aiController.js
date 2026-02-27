@@ -135,11 +135,25 @@ exports.voiceQuery = async (req, res) => {
         );
 
         // Final scrub: defense-in-depth cleanup before ElevenLabs
-        const ttsText = _scrubForTTS(llmResult.tts_text || llmResult.response || llmResult.summary || '');
+        let ttsText = _scrubForTTS(llmResult.tts_text || llmResult.response || llmResult.summary || '');
+
+        // ── Safety Phrase: prevent blank or garbage TTS ──
+        if (!ttsText || ttsText.trim().length < 5) {
+            console.log(`⚠️ LLM response too short (${(ttsText || '').length} chars) — injecting safety phrase`);
+            const safetyPhrases = {
+                'ta': 'மன்னிக்கவும், ஒரு நிமிடம் இருங்கப்பா, விவரங்களை சரிபார்க்கிறேன்.',
+                'ml': 'ക്ഷമിക്കണം, ഒരു നിമിഷം കാക്കൂ, വിവരങ്ങൾ പരിശോധിക്കുകയാണ്.',
+                'en': 'Please wait a moment, I am verifying the details for you.',
+            };
+            ttsText = safetyPhrases[effectiveLang] || safetyPhrases['en'];
+        }
+
         let ttsResult = { audio_base64: null, latency_ms: 0 };
 
         if (ttsText) {
+            console.log(`🔊 Audio generating for: "${ttsText.substring(0, 40)}..."`);
             ttsResult = await elevenLabs.synthesizeSpeech(ttsText, effectiveLang);
+            console.log(`🔊 Audio generated: ${ttsResult.audio_base64 ? ttsResult.audio_base64.length + ' base64 chars' : 'NONE'} (${ttsResult.latency_ms}ms)`);
         }
 
         const totalLatencyMs = Date.now() - totalStartTime;

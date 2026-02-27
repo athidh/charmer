@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_settings.dart';
 import 'core/services/auth_provider.dart';
 import 'core/services/locale_provider.dart';
+import 'core/services/audio_provider.dart';
 import 'features/auth/splash_screen.dart';
 
 void main() {
@@ -23,6 +24,7 @@ void main() {
         ChangeNotifierProvider.value(value: appSettings),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider.value(value: localeProvider),
+        ChangeNotifierProvider(create: (_) => AudioProvider()),
       ],
       child: const CharmerApp(),
     ),
