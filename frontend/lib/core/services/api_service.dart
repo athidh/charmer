@@ -49,11 +49,11 @@ class ApiService {
 
   // ──────────────── AI Pipeline ────────────────
 
-  /// POST /api/ai/voice-query — send audio, get back AI text + audio response
-  Future<Map<String, dynamic>> voiceQuery(
+  /// POST /api/ai/voice-query — NDJSON streaming: yields STT phase then complete phase
+  Stream<Map<String, dynamic>> voiceQueryStream(
     Uint8List audioBytes,
     String language,
-  ) async {
+  ) async* {
     final uri = Uri.parse('$_baseUrl/ai/voice-query');
     final request = http.MultipartRequest('POST', uri);
     if (_token != null) {
@@ -68,9 +68,40 @@ class ApiService {
       ),
     );
 
-    final streamed = await request.send().timeout(const Duration(seconds: 30));
-    final res = await http.Response.fromStream(streamed);
-    return _handleResponse(res);
+    final streamed = await request.send().timeout(const Duration(seconds: 60));
+
+    // Read NDJSON: each line is a separate JSON object
+    final body = await streamed.stream.bytesToString();
+    final lines = body.split('\n').where((l) => l.trim().isNotEmpty);
+
+    for (final line in lines) {
+      try {
+        final chunk = jsonDecode(line) as Map<String, dynamic>;
+        // If it's an error phase, throw
+        if (chunk['phase'] == 'error') {
+          throw ApiException(
+            statusCode: streamed.statusCode,
+            message: chunk['error'] ?? 'Unknown error',
+          );
+        }
+        yield chunk;
+      } catch (e) {
+        if (e is ApiException) rethrow;
+        // Skip malformed lines
+      }
+    }
+  }
+
+  /// Convenience: non-streaming voiceQuery that returns the final 'complete' result
+  Future<Map<String, dynamic>> voiceQuery(
+    Uint8List audioBytes,
+    String language,
+  ) async {
+    Map<String, dynamic> result = {};
+    await for (final chunk in voiceQueryStream(audioBytes, language)) {
+      result = chunk;
+    }
+    return result;
   }
 
   /// POST /api/ai/analyze-pdf — upload PDF for distillation

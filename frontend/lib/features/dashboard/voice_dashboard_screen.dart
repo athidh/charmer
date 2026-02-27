@@ -130,56 +130,80 @@ class _VoiceDashboardScreenState extends State<VoiceDashboardScreen>
     try {
       final locale = context.read<LocaleProvider>().locale.languageCode;
       final auth = context.read<AuthProvider>();
-      final result = await auth.api.voiceQuery(audioBytes, locale);
-      stopwatch.stop();
 
-      if (!mounted) return;
+      // Stream NDJSON: Phase 1 (transcript) arrives first, Phase 2 (full result) later
+      await for (final chunk in auth.api.voiceQueryStream(audioBytes, locale)) {
+        if (!mounted) return;
 
-      setState(() {
-        _inferenceLatencyMs = stopwatch.elapsedMilliseconds;
-        _infoDensityScore = (result['info_density'] as num?)?.toDouble() ?? 0.0;
-        _phoneticAccuracy =
-            (result['phonetic_accuracy'] as num?)?.toDouble() ?? 0.0;
-        _pipelineStage = 'Complete';
-        _currentStage = 'speaking';
+        if (chunk['phase'] == 'stt') {
+          // ── Phase 1: Show transcript immediately ──
+          setState(() {
+            _pipelineStage = 'Processing Recommendation…';
+            _phoneticAccuracy =
+                (chunk['phonetic_accuracy'] as num?)?.toDouble() ?? 0.0;
 
-        // Add farmer query
-        _messages.add({
-          'role': 'user',
-          'text': result['transcript'] ?? '...',
-          'timestamp': DateTime.now().toIso8601String(),
-        });
+            // Add farmer's transcript as a message right away
+            _messages.add({
+              'role': 'user',
+              'text': chunk['transcript'] ?? '...',
+              'timestamp': DateTime.now().toIso8601String(),
+            });
+          });
 
-        // Add AI response
-        _messages.add({
-          'role': 'assistant',
-          'text': result['response'] ?? 'No response',
-          'explanation': result['explanation'],
-          'risks': result['hidden_risks'],
-          'sources': result['sources'],
-          'timestamp': DateTime.now().toIso8601String(),
-        });
+          // Auto-scroll to show transcript
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        } else if (chunk['phase'] == 'complete') {
+          // ── Phase 2: Full result with AI response + audio ──
+          stopwatch.stop();
+          setState(() {
+            _inferenceLatencyMs = stopwatch.elapsedMilliseconds;
+            _infoDensityScore =
+                (chunk['info_density'] as num?)?.toDouble() ?? 0.0;
+            _phoneticAccuracy =
+                (chunk['phonetic_accuracy'] as num?)?.toDouble() ?? 0.0;
+            _pipelineStage = 'Complete';
+            _currentStage = 'speaking';
 
-        _isProcessing = false;
-      });
+            // Add AI response
+            _messages.add({
+              'role': 'assistant',
+              'text': chunk['response'] ?? 'No response',
+              'explanation': chunk['explanation'],
+              'risks': chunk['hidden_risks'],
+              'sources': chunk['sources'],
+              'timestamp': DateTime.now().toIso8601String(),
+            });
 
-      // Auto-scroll to latest message
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
+            _isProcessing = false;
+          });
+
+          // Auto-scroll to latest message
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+
+          // Play audio response if available
+          if (chunk['audio_url'] != null) {
+            await _audioPlayer.play(UrlSource(chunk['audio_url']));
+          }
+
+          setState(() => _currentStage = 'idle');
         }
-      });
-
-      // Play audio response if available
-      if (result['audio_url'] != null) {
-        await _audioPlayer.play(UrlSource(result['audio_url']));
       }
-
-      setState(() => _currentStage = 'idle');
     } catch (e) {
       stopwatch.stop();
       if (!mounted) return;

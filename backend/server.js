@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
+// Prevent Node from closing sockets before Llama 3 70B finishes (> Axios 60s)
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
 // Socket.io for live metric streaming to debug panel
 const io = new Server(server, {
     cors: { origin: "*" }

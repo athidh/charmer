@@ -61,6 +61,7 @@ async function transcribeAudio(audioBuffer, language = 'en', mimetype = 'audio/w
         formData.append('language_code', langCode);
         formData.append('model', 'saaras:v3');
         formData.append('mode', 'transcribe');
+        formData.append('with_timestamps', 'false');
 
         console.log(`🎤 Sarvam STT (saaras:v3): ${filename} (${contentType}, ${audioBuffer.length} bytes, lang=${langCode})`);
 

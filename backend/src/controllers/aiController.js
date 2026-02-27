@@ -8,6 +8,25 @@ const elevenLabs = require('../services/elevenLabsService');
 const districtData = require('../config/districtSeedData.json');
 
 /**
+ * Defense-in-depth: final scrub to strip JSON artifacts, English labels,
+ * and markdown formatting before text reaches ElevenLabs TTS.
+ */
+function _scrubForTTS(text) {
+    if (!text) return text;
+    return text
+        // Strip English labels (response:, hidden_risks:, etc.)
+        .replace(/\b(response|hidden_risks?|explanation|sources?|severity|label|detail)\s*:/gi, '')
+        // Strip JSON/bracket punctuation
+        .replace(/[{}"\[\]]/g, '')
+        .replace(/^\s*:\s*/gm, '')
+        // Strip markdown artifacts
+        .replace(/```[\s\S]*?```/g, '').replace(/\*{1,2}/g, '')
+        // Collapse whitespace
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+/**
  * POST /api/ai/analyze-pdf
  * Upload a PDF → extract text → Featherless AI distillation with hidden risk mining
  */
@@ -49,67 +68,85 @@ exports.analyzePdf = async (req, res) => {
 
 /**
  * POST /api/ai/voice-query
- * Audio → Sarvam STT → Featherless LLM (Mixtral) → ElevenLabs TTS
- * Optimized for the 3-second loop target.
+ * Audio → Sarvam STT → Featherless LLM (Llama 3) → ElevenLabs TTS
+ * Two-phase NDJSON streaming: transcript arrives first, then full response.
  */
 exports.voiceQuery = async (req, res) => {
+    // Set up NDJSON streaming headers
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'No audio file uploaded' });
+            res.write(JSON.stringify({ phase: 'error', error: 'No audio file uploaded' }) + '\n');
+            return res.end();
         }
 
         const language = req.body.language || 'en';
         const district = req.body.district || 'coimbatore';
         const totalStartTime = Date.now();
 
-        // ── Step 1: STT — Sarvam AI (Shakti) ──
+        // ── Phase 1: STT — Sarvam AI ──
         const sttResult = await sarvam.transcribeAudio(
             req.file.buffer, language, req.file.mimetype, req.file.originalname
         );
 
-        // Fallback: if Sarvam fails, return localized "Service Busy" message
         if (sttResult.error) {
-            console.error(`⚠️ Sarvam STT failed, returning fallback: ${sttResult.error}`);
-            return res.status(503).json({
+            console.error(`⚠️ Sarvam STT failed: ${sttResult.error}`);
+            res.write(JSON.stringify({
+                phase: 'error',
                 error: sttResult.fallback_message || 'Service is busy, please try again.',
                 stt_error: sttResult.error,
                 phonetic_accuracy: 0,
                 latency_ms: sttResult.latency_ms,
-            });
+            }) + '\n');
+            return res.end();
         }
 
         if (!sttResult.transcript || sttResult.transcript.trim().length === 0) {
-            return res.status(400).json({
+            res.write(JSON.stringify({
+                phase: 'error',
                 error: 'Could not understand audio. Please try again.',
                 phonetic_accuracy: 0,
-            });
+            }) + '\n');
+            return res.end();
         }
 
-        // Detect input language from Sarvam's response for dialect matching
+        // Detect dialect
         const detectedLang = sttResult.detected_language || language;
-        // Map Sarvam BCP-47 (ta-IN, ml-IN) back to short code for LLM/TTS
         const effectiveLang = detectedLang.startsWith('ta') ? 'ta'
             : detectedLang.startsWith('ml') ? 'ml'
                 : 'en';
 
-        // ── Step 2: LLM — Featherless AI (Mixtral) with TNAU context ──
+        // ── Flush Phase 1: transcript arrives immediately ──
+        res.write(JSON.stringify({
+            phase: 'stt',
+            transcript: sttResult.transcript,
+            detected_language: detectedLang,
+            phonetic_accuracy: sttResult.confidence || 0,
+            stt_ms: sttResult.latency_ms,
+        }) + '\n');
+
+        // ── Phase 2: LLM + TTS ──
         const districtContext = districtData.districts?.[district] || null;
         const llmResult = await featherless.answerQuery(
             sttResult.transcript, effectiveLang, districtContext
         );
 
-        // ── Step 3: TTS — Pipe LLM response to ElevenLabs with correct voice ──
-        const ttsText = llmResult.tts_text || llmResult.response || llmResult.summary || '';
+        // Final scrub: defense-in-depth cleanup before ElevenLabs
+        const ttsText = _scrubForTTS(llmResult.tts_text || llmResult.response || llmResult.summary || '');
         let ttsResult = { audio_base64: null, latency_ms: 0 };
 
         if (ttsText) {
-            // ElevenLabs voice is selected by effectiveLang (ta → Tamil voice, ml → Malayalam voice)
             ttsResult = await elevenLabs.synthesizeSpeech(ttsText, effectiveLang);
         }
 
         const totalLatencyMs = Date.now() - totalStartTime;
 
-        res.json({
+        // ── Flush Phase 2: full result ──
+        res.write(JSON.stringify({
+            phase: 'complete',
             transcript: sttResult.transcript,
             response: ttsText,
             detected_language: detectedLang,
@@ -118,8 +155,6 @@ exports.voiceQuery = async (req, res) => {
             sources: llmResult.sources || [],
             audio_base64: ttsResult.audio_base64,
             audio_content_type: ttsResult.content_type,
-
-            // Debug metrics
             phonetic_accuracy: sttResult.confidence || 0,
             info_density: llmResult.info_density || 0,
             latency_ms: totalLatencyMs,
@@ -129,11 +164,15 @@ exports.voiceQuery = async (req, res) => {
                 tts_ms: ttsResult.latency_ms,
             },
             under_3s: totalLatencyMs <= 3000,
-        });
+        }) + '\n');
+        res.end();
     } catch (err) {
         console.error('❌ Voice query error:', err.message);
         console.error('   Full error:', err.response?.data || err.stack);
-        res.status(500).json({ error: 'Voice query failed', details: err.message });
+        try {
+            res.write(JSON.stringify({ phase: 'error', error: 'Voice query failed', details: err.message }) + '\n');
+            res.end();
+        } catch { /* headers already sent */ }
     }
 };
 
